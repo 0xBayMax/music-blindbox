@@ -1,0 +1,213 @@
+import { useEffect, useRef, useState } from 'react'
+import { CARDS } from './cards/cards'
+import { drawCards } from './cards/gacha'
+import { BeatEngine } from './audio/engine'
+import type { Card, SlotType } from './cards/types'
+import CardFace, { SLOT_LABEL } from './components/CardFace'
+import Spectrum from './components/Spectrum'
+
+const SLOT_ORDER: SlotType[] = ['groove', 'harmony', 'timbre']
+const SLOT_ICON: Record<SlotType, string> = { groove: '🥁', harmony: '🎹', timbre: '🎸' }
+
+const BOOT_LINES = [
+  '$ boot beat-gacha.exe',
+  '> mount /cards ......... 42 OK',
+  '> audio-engine ......... OK',
+  '> crt-monitor .......... OK',
+  '',
+  '抽个 BEAT  v0.1',
+]
+
+interface HandItem { card: Card; locked: boolean }
+
+export default function App() {
+  const engineRef = useRef<BeatEngine | null>(null)
+  const [booted, setBooted] = useState(false)
+  const [bootLines, setBootLines] = useState(0)
+  const [hand, setHand] = useState<HandItem[]>([])
+  const [slots, setSlots] = useState<Partial<Record<SlotType, Card>>>({})
+  const [playing, setPlaying] = useState(false)
+  const [toast, setToast] = useState('PRESS Ⓐ TO DRAW')
+  const [drawSeq, setDrawSeq] = useState(0)
+  const [glitch, setGlitch] = useState(0)
+  const [golden, setGolden] = useState(false)
+  const [shakeSlot, setShakeSlot] = useState<SlotType | null>(null)
+  const [dragCard, setDragCard] = useState<Card | null>(null)
+  const [flash, setFlash] = useState(false)
+
+  const engine = () => (engineRef.current ??= newEngine())
+
+  const newEngine = () => {
+    const e = new BeatEngine()
+    e.onEaster = msg => { setToast(msg); setGlitch(g => g + 1) }
+    e.onHiddenCombo = () => {
+      setGolden(true)
+      setGlitch(g => g + 1)
+      setToast('★ 隐藏曲 GOLDEN COMBO 触发！★')
+    }
+    ;(window as unknown as { __engine: BeatEngine }).__engine = e
+    return e
+  }
+
+  // 开机终端逐行打印
+  useEffect(() => {
+    if (booted || bootLines >= BOOT_LINES.length) return
+    const t = setTimeout(() => setBootLines(n => n + 1), 260)
+    return () => clearTimeout(t)
+  }, [booted, bootLines])
+
+  const fireGlitch = () => {
+    setGlitch(g => g + 1)
+  }
+
+  const draw = () => {
+    setHand(drawCards(CARDS, 3).map(card => ({ card, locked: false })))
+    setDrawSeq(s => s + 1)
+    setToast('NEW BEAT+ x3 — 点卡 / 拖卡入槽')
+  }
+
+  const redraw = () => {
+    const locked = hand.filter(h => h.locked)
+    const need = 3 - locked.length
+    if (need <= 0) { setToast('ALL LOCKED — 先解锁再重抽'); return }
+    const exclude = [...locked.map(h => h.card.id), ...Object.values(slots).map(c => c!.id)]
+    const fresh = drawCards(CARDS, need, exclude).map(card => ({ card, locked: false }))
+    setHand([...locked, ...fresh])
+    setDrawSeq(s => s + 1)
+    setToast(`REDRAW x${need} — 已保留 ${locked.length} 张锁定卡`)
+  }
+
+  const playCard = (item: HandItem) => {
+    const { card } = item
+    const eng = engine()
+    if (card.slot === 'easter') {
+      eng.triggerEaster(card)
+      setHand(h => h.filter(x => x.card.id !== card.id))
+      return
+    }
+    const slot = card.slot as SlotType
+    setSlots(s => ({ ...s, [slot]: card }))
+    eng.setCard(card)
+    setHand(h => h.filter(x => x.card.id !== card.id))
+    setToast(`${card.name} → ${SLOT_LABEL[slot]}槽`)
+    setFlash(true)
+    setTimeout(() => setFlash(false), 220)
+    if (card.rarity === 'SSR') fireGlitch()
+  }
+
+  const togglePlay = async () => {
+    const eng = engine()
+    if (!playing) {
+      await eng.start()
+      setPlaying(true)
+      setToast('NOW PLAYING — 换卡不中断')
+    } else {
+      eng.stop()
+      setPlaying(false)
+      setToast('PAUSED')
+    }
+  }
+
+  const onDropToSlot = (slot: SlotType) => {
+    if (!dragCard) return
+    if (dragCard.slot !== slot) {
+      setShakeSlot(slot)
+      setToast(`TYPE MISMATCH — ${dragCard.name} 进不了${SLOT_LABEL[slot]}槽`)
+      setTimeout(() => setShakeSlot(null), 450)
+      return
+    }
+    const item = hand.find(h => h.card.id === dragCard.id)
+    if (item) playCard(item)
+  }
+
+  return (
+    <div className="page">
+      {!booted && (
+        <div className="boot" onClick={() => setBooted(true)}>
+          <div className="boot-term">
+            {BOOT_LINES.slice(0, bootLines).map((l, i) => <div key={i}>{l}</div>)}
+            {bootLines >= BOOT_LINES.length && (
+              <div className="boot-go">▶ CLICK TO POWER ON<span className="cursor">_</span></div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {glitch > 0 && <div key={glitch} className="glitch-overlay" />}
+
+      <div className="console">
+        <div className="console-top">
+          <span className="brand">BEAT-BOY <i> pocket</i></span>
+          <span className={`led${playing ? ' on' : ''}`} />
+        </div>
+
+        <div className="screen-bezel">
+          <div className={`screen${golden ? ' golden' : ''}${flash ? ' flash' : ''}`}>
+            <div className="screen-head">
+              <span>抽个 BEAT</span>
+              <span className="blink">{golden ? '★ GOLDEN COMBO ★' : Object.keys(slots).length < 3 ? 'INSERT CARD' : 'NOW LOADING BEAT'}</span>
+            </div>
+
+            <div className="slots-row">
+              {SLOT_ORDER.map(t => {
+                const c = slots[t]
+                return (
+                  <div
+                    key={t}
+                    className={`slot${c ? ' filled' : ''}${shakeSlot === t ? ' shake' : ''}${dragCard ? (dragCard.slot === t ? ' drop-ok' : ' drop-no') : ''}`}
+                    onDragOver={e => { if (dragCard?.slot === t) e.preventDefault() }}
+                    onDrop={e => { e.preventDefault(); onDropToSlot(t) }}
+                  >
+                    <div className="slot-label">{SLOT_ICON[t]} {SLOT_LABEL[t]}槽</div>
+                    {c
+                      ? <CardFace card={c} compact />
+                      : <div className="slot-empty">— EMPTY —</div>}
+                  </div>
+                )
+              })}
+            </div>
+
+            <Spectrum engineRef={engineRef} playing={playing} />
+
+            <div className="hand" key={drawSeq}>
+              {hand.length === 0 && <div className="hand-hint">手卡区 · 按 Ⓐ 抽卡</div>}
+              {hand.map((h, i) => (
+                <CardFace
+                  key={h.card.id}
+                  card={h.card}
+                  index={i}
+                  locked={h.locked}
+                  onToggleLock={() => setHand(cur => cur.map(x => x.card.id === h.card.id ? { ...x, locked: !x.locked } : x))}
+                  onPlay={() => playCard(h)}
+                  onDragStart={e => { e.dataTransfer.setData('text/plain', h.card.id); setDragCard(h.card) }}
+                  onDragEnd={() => setDragCard(null)}
+                />
+              ))}
+            </div>
+
+            <div className="term-line">&gt; {toast}<span className="cursor">_</span></div>
+          </div>
+        </div>
+
+        <div className="controls-row">
+          <div className="dpad"><div className="dpad-h" /><div className="dpad-v" /></div>
+          <div className="start-cluster">
+            <button className="btn-start" onClick={togglePlay}>{playing ? '❚❚ PAUSE' : '▶ START'}</button>
+            <div className="btn-cap">播放/暂停</div>
+          </div>
+          <div className="ab-cluster">
+            <div className="ab-item">
+              <button className="btn-round btn-b" onClick={redraw}>B</button>
+              <div className="btn-cap">重抽</div>
+            </div>
+            <div className="ab-item">
+              <button className="btn-round btn-a" onClick={draw}>A</button>
+              <div className="btn-cap">抽卡</div>
+            </div>
+          </div>
+          <div className="speaker" />
+        </div>
+      </div>
+    </div>
+  )
+}
