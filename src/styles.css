@@ -402,19 +402,18 @@ body {
   /* 频谱加高 */
   .spectrum { flex: 0 0 auto; height: 72px; }
 
-  /* 手卡区：吃掉全部富余高度（保底 130px），卡带垂直居中 + 横向滑动 */
+  /* 手卡区：吃掉全部富余高度（保底 130px）；手牌最多 3 张，三卡平分居中不滚动 */
   .hand {
     flex: 1 1 0; min-height: 130px;
-    flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
-    justify-content: flex-start; align-items: center;
-    padding-bottom: 4px; scrollbar-width: none;
+    flex-wrap: nowrap;
+    justify-content: center; align-items: center;
+    padding-bottom: 4px;
   }
-  .hand::-webkit-scrollbar { display: none; }
-  .hand .cart { width: 124px; flex: 0 0 auto; padding: 10px 5px 5px; }
+  .hand .cart { flex: 1 1 0; min-width: 0; max-width: 136px; padding: 10px 5px 5px; }
   .hand .cart-label { padding: 4px; min-height: 0; }
   .hand .sigil { width: 22px; height: 22px; }
-  .hand .cart-name { font-size: 8px; }
-  .hand .cart-meta { font-size: 6px; }
+  .hand .cart-name { font-size: 8px; min-height: 24px; } /* 统一两行高，卡带等高 */
+  .hand .cart-meta { font-size: 6px; min-height: 10px; }
   .hand .cart-flavor { display: none; } /* 移动端藏 flavor 省高度 */
   .hand .cart-rarity { font-size: 6px; padding: 1px 2px; }
   .cart-lock { font-size: 6px; right: -4px; top: -6px; }
