@@ -365,13 +365,13 @@ body {
 /* ============ 移动端：手机即掌机——满屏沉浸，一屏不滚动 ============ */
 @media (max-width: 640px) {
   html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
-  .page { padding: 0; height: 100dvh; align-items: stretch; }
+  .page { padding: 6px; height: 100dvh; align-items: stretch; } /* 窄黑边衬托掌机轮廓 */
 
-  /* 掌机=手机本体：铺满视口，去圆角/投影，避开刘海与 Home 条 */
+  /* 掌机=手机本体：近乎铺满，恢复圆角描边让外轮廓完整 */
   .console {
     width: 100%; height: 100%;
-    border: none; border-radius: 0; box-shadow: none;
-    padding: calc(8px + env(safe-area-inset-top)) 10px calc(8px + env(safe-area-inset-bottom));
+    border: 2px solid #8a877c; border-radius: 14px; box-shadow: none;
+    padding: calc(4px + env(safe-area-inset-top)) 8px calc(4px + env(safe-area-inset-bottom));
     display: flex; flex-direction: column; gap: 8px;
   }
   .console-top { flex: 0 0 auto; padding: 0 2px 0; }
