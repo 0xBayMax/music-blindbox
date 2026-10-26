@@ -2,13 +2,13 @@
 
 > 抽 3 张盲盒卡，合成一段属于你的循环 Beat。
 
-**[▶ 在线体验](https://traedemos.com/zh-CN/works/4480?from=%2Fprofile)**
+**[▶ 在线体验](https://0xbaymax.github.io/music-blindbox/)**
 
 ---
 
 ## 产品背景
 
-这是 [Trae 1024 程序员节](https://traedemos.com/) 的参赛 Demo。
+这是 [Trae 1024 程序员节](https://traedemos.com/zh-CN/works/4480?from=%2Fprofile) 的参赛 Demo。
 
 比赛的报名方式是抽盲盒——作者现场抽到 3 张卡组成了这个题目。于是产品顺着这个梗做成了一台「音乐盲盒机」：
 
