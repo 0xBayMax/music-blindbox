@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { CARDS } from './cards/cards'
 import { drawCards } from './cards/gacha'
-import { BeatEngine } from './audio/engine'
+import { BeatEngine, HIDDEN_COMBO } from './audio/engine'
+import { makePoster } from './poster'
 import type { Card, SlotType } from './cards/types'
 import CardFace, { SLOT_LABEL } from './components/CardFace'
 import Spectrum from './components/Spectrum'
@@ -34,6 +35,7 @@ export default function App() {
   const [shakeSlot, setShakeSlot] = useState<SlotType | null>(null)
   const [dragCard, setDragCard] = useState<Card | null>(null)
   const [flash, setFlash] = useState(false)
+  const [achieve, setAchieve] = useState(false)
 
   const engine = () => (engineRef.current ??= newEngine())
 
@@ -43,6 +45,7 @@ export default function App() {
     e.onHiddenCombo = () => {
       setGolden(true)
       setGlitch(g => g + 1)
+      setAchieve(true)
       setToast('★ 隐藏曲 GOLDEN COMBO 触发！★')
     }
     ;(window as unknown as { __engine: BeatEngine }).__engine = e
@@ -55,6 +58,23 @@ export default function App() {
     const t = setTimeout(() => setBootLines(n => n + 1), 260)
     return () => clearTimeout(t)
   }, [booted, bootLines])
+
+  // 换掉任一 SSR 卡后撤销金屏（置位路径只有 onHiddenCombo 回调）
+  useEffect(() => {
+    const ids = SLOT_ORDER.map(t => slots[t]?.id)
+    if (!HIDDEN_COMBO.every(id => ids.includes(id))) setGolden(false)
+  }, [slots])
+
+  // 演示后门：?golden=1 开机后直接装配 3SSR 隐藏曲（现场演示用）
+  useEffect(() => {
+    if (!booted) return
+    if (!new URLSearchParams(location.search).has('golden')) return
+    const combo = HIDDEN_COMBO.map(id => CARDS.find(c => c.id === id)!)
+    const eng = engine()
+    combo.forEach(c => eng.setCard(c))
+    setSlots({ groove: combo[0], harmony: combo[1], timbre: combo[2] })
+    setToast('★ GOLDEN COMBO 已装配 — PRESS START')
+  }, [booted])
 
   const fireGlitch = () => {
     setGlitch(g => g + 1)
@@ -108,6 +128,20 @@ export default function App() {
     }
   }
 
+  const share = async () => {
+    const cards = SLOT_ORDER.map(t => slots[t])
+    if (cards.some(c => !c)) {
+      setToast('SHARE — 先集齐 3 张卡再导出海报')
+      return
+    }
+    try {
+      await makePoster(cards as Card[], golden)
+      setToast('POSTER 已导出 PNG — 晒出来吧')
+    } catch (e) {
+      setToast('POSTER 导出失败 — ' + (e as Error).message)
+    }
+  }
+
   const onDropToSlot = (slot: SlotType) => {
     if (!dragCard) return
     if (dragCard.slot !== slot) {
@@ -134,6 +168,22 @@ export default function App() {
       )}
 
       {glitch > 0 && <div key={glitch} className="glitch-overlay" />}
+
+      {achieve && (
+        <div className="achieve-mask" onClick={() => setAchieve(false)}>
+          <div className="achieve" onClick={e => e.stopPropagation()}>
+            <div className="achieve-title">★ GOLDEN COMBO ★</div>
+            <div className="achieve-sub">ACHIEVEMENT UNLOCKED</div>
+            <div className="achieve-body">
+              三张 SSR 同槽共振<br />隐藏曲目 · 黄金铃音已激活
+            </div>
+            <div className="achieve-cards">
+              {SLOT_ORDER.map(t => slots[t] && <CardFace key={t} card={slots[t]!} compact />)}
+            </div>
+            <button className="achieve-btn" onClick={() => setAchieve(false)}>CONTINUE ▶</button>
+          </div>
+        </div>
+      )}
 
       <div className="console">
         <div className="console-top">
@@ -192,8 +242,16 @@ export default function App() {
         <div className="controls-row">
           <div className="dpad"><div className="dpad-h" /><div className="dpad-v" /></div>
           <div className="start-cluster">
-            <button className="btn-start" onClick={togglePlay}>{playing ? '❚❚ PAUSE' : '▶ START'}</button>
-            <div className="btn-cap">播放/暂停</div>
+            <div className="start-pair">
+              <div className="pill-item">
+                <button className="btn-pill" onClick={share}>SELECT</button>
+                <div className="btn-cap">分享海报</div>
+              </div>
+              <div className="pill-item">
+                <button className="btn-pill" onClick={togglePlay}>{playing ? '❚❚ PAUSE' : '▶ START'}</button>
+                <div className="btn-cap">播放/暂停</div>
+              </div>
+            </div>
           </div>
           <div className="ab-cluster">
             <div className="ab-item">

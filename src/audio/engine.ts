@@ -6,7 +6,8 @@ type LeadSynth = Tone.Synth | Tone.FMSynth | Tone.MonoSynth
 const LAYERS = ['kick', 'snare', 'hat', 'perc', 'bass', 'pad', 'lead', 'arp'] as const
 type LayerName = typeof LAYERS[number]
 
-const HIDDEN_COMBO = ['groove-quantum', 'harmony-golden', 'timbre-golden-chip']
+/** 3SSR 隐藏曲判定：节奏/和声/音色三张 SSR 同槽 */
+export const HIDDEN_COMBO = ['groove-quantum', 'harmony-golden', 'timbre-golden-chip']
 
 /** Lead 合成器工厂 */
 function makeLead(kind: string): LeadSynth {
@@ -130,6 +131,8 @@ export class BeatEngine {
   private lead!: LeadSynth
   private arp!: Tone.Synth
   private leadDist!: Tone.Distortion
+  /** 隐藏曲黄金铃音层 */
+  private bell!: Tone.FMSynth
 
   onStep?: (step: number, bar: number) => void
   onEaster?: (msg: string) => void
@@ -216,6 +219,17 @@ export class BeatEngine {
     this.arp.volume.value = -21
     this.arp.connect(this.layerGain.arp); this.layerGain.arp.connect(this.bus)
     this.layerGain.arp.connect(delSend)
+
+    // 隐藏曲黄金铃音层：玻璃质感，走 delay+reverb 制造圣光尾音
+    this.bell = new Tone.FMSynth({
+      harmonicity: 12, modulationIndex: 8,
+      envelope: { attack: 0.002, decay: 0.9, sustain: 0, release: 1.2 },
+      modulationEnvelope: { attack: 0.002, decay: 0.3, sustain: 0, release: 0.4 },
+    })
+    this.bell.volume.value = -19
+    this.bell.connect(this.bus)
+    this.bell.connect(revSend)
+    this.bell.connect(delSend)
 
     this.built = true
   }
@@ -460,6 +474,7 @@ export class BeatEngine {
     const hit = HIDDEN_COMBO.every(id => ids.includes(id))
     if (hit && !this.hidden) {
       this.hidden = true
+      this.playGoldenIntro()
       this.onHiddenCombo?.()
     } else if (!hit) {
       this.hidden = false
@@ -591,9 +606,9 @@ export class BeatEngine {
       }
     }
 
-    // ---- Arp（跟随当前和弦音，与 Lead 错开八度）----
+    // ---- Arp（跟随当前和弦音，与 Lead 错开八度；隐藏曲强制 16n）----
     if (this.timbre && this.timbre.arpMode !== 'off' && chordNotes.length > 0) {
-      const rate16 = this.timbre.arpRate === '16n'
+      const rate16 = this.timbre.arpRate === '16n' || this.hidden
       if (rate16 || s16 % 2 === 0) {
         const mode = this.timbre.arpMode
         const n = chordNotes.length
@@ -610,7 +625,28 @@ export class BeatEngine {
       }
     }
 
+    // ---- 隐藏曲：黄金铃音在和弦高点缀 ----
+    if (this.hidden && chordNotes.length > 0) {
+      const top = chordNotes[chordNotes.length - 1]
+      if (s16 === 0) {
+        // 小节头：高八度长铃
+        this.bell.triggerAttackRelease(Tone.Frequency(top).transpose(12).toNote(), '4n', time, 0.45)
+      } else if (s16 === 10) {
+        // 后半小节：五度短铃回应
+        this.bell.triggerAttackRelease(Tone.Frequency(top).transpose(19).toNote(), '8n', time, 0.3)
+      }
+    }
+
     this.finishTick(step, bar, time)
+  }
+
+  /** 隐藏曲解锁仪式：黄金铃音上行琶音（C 大调五声爬升两个八度） */
+  private playGoldenIntro() {
+    const notes = ['C4', 'D4', 'E4', 'G4', 'A4', 'C5', 'E5', 'G5', 'C6']
+    const t0 = Tone.now() + 0.05
+    notes.forEach((n, i) => {
+      this.bell.triggerAttackRelease(n, '8n', t0 + i * 0.09, 0.5)
+    })
   }
 
   private playArp(note: string, time: number) {
