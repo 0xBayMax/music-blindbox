@@ -2,7 +2,7 @@
 
 > 抽 3 张盲盒卡，合成一段属于你的循环 Beat。
 
-**[▶ 在线体验](https://0xbaymax.github.io/music-blindbox/)**
+**[▶ 在线体验](https://traedemos.com/zh-CN/works/4480?from=%2Fprofile)**
 
 ---
 
