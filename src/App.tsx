@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { CARDS } from './cards/cards'
 import { drawCards } from './cards/gacha'
 import { BeatEngine, HIDDEN_COMBO } from './audio/engine'
+import { sfx } from './audio/sfx'
 import { makePoster } from './poster'
 import type { Card, SlotType } from './cards/types'
 import CardFace, { SLOT_LABEL } from './components/CardFace'
@@ -81,20 +82,30 @@ export default function App() {
   }
 
   const draw = () => {
-    setHand(drawCards(CARDS, 3).map(card => ({ card, locked: false })))
+    const cards = drawCards(CARDS, 3)
+    setHand(cards.map(card => ({ card, locked: false })))
     setDrawSeq(s => s + 1)
     setToast('NEW BEAT+ x3 — 点卡 / 拖卡入槽')
+    sfx('draw')
+    // SSR 出货音对齐翻卡错帧动画（index×120ms + 翻面约 300ms）
+    cards.forEach((c, i) => {
+      if (c.rarity === 'SSR') setTimeout(() => sfx('ssr'), 420 + i * 120)
+    })
   }
 
   const redraw = () => {
     const locked = hand.filter(h => h.locked)
     const need = 3 - locked.length
-    if (need <= 0) { setToast('ALL LOCKED — 先解锁再重抽'); return }
+    if (need <= 0) { setToast('ALL LOCKED — 先解锁再重抽'); sfx('reject'); return }
     const exclude = [...locked.map(h => h.card.id), ...Object.values(slots).map(c => c!.id)]
     const fresh = drawCards(CARDS, need, exclude).map(card => ({ card, locked: false }))
     setHand([...locked, ...fresh])
     setDrawSeq(s => s + 1)
     setToast(`REDRAW x${need} — 已保留 ${locked.length} 张锁定卡`)
+    sfx('draw')
+    fresh.forEach((h, i) => {
+      if (h.card.rarity === 'SSR') setTimeout(() => sfx('ssr'), 420 + i * 120)
+    })
   }
 
   const playCard = (item: HandItem) => {
@@ -103,6 +114,7 @@ export default function App() {
     if (card.slot === 'easter') {
       eng.triggerEaster(card)
       setHand(h => h.filter(x => x.card.id !== card.id))
+      sfx('easter')
       return
     }
     const slot = card.slot as SlotType
@@ -112,11 +124,13 @@ export default function App() {
     setToast(`${card.name} → ${SLOT_LABEL[slot]}槽`)
     setFlash(true)
     setTimeout(() => setFlash(false), 220)
-    if (card.rarity === 'SSR') fireGlitch()
+    sfx('insert')
+    if (card.rarity === 'SSR') { fireGlitch(); sfx('ssr') }
   }
 
   const togglePlay = async () => {
     const eng = engine()
+    sfx('start')
     if (!playing) {
       await eng.start()
       setPlaying(true)
@@ -147,6 +161,7 @@ export default function App() {
     if (dragCard.slot !== slot) {
       setShakeSlot(slot)
       setToast(`TYPE MISMATCH — ${dragCard.name} 进不了${SLOT_LABEL[slot]}槽`)
+      sfx('reject')
       setTimeout(() => setShakeSlot(null), 450)
       return
     }
@@ -227,7 +242,7 @@ export default function App() {
                   card={h.card}
                   index={i}
                   locked={h.locked}
-                  onToggleLock={() => setHand(cur => cur.map(x => x.card.id === h.card.id ? { ...x, locked: !x.locked } : x))}
+                  onToggleLock={() => { sfx('lock'); setHand(cur => cur.map(x => x.card.id === h.card.id ? { ...x, locked: !x.locked } : x)) }}
                   onPlay={() => playCard(h)}
                   onDragStart={e => { e.dataTransfer.setData('text/plain', h.card.id); setDragCard(h.card) }}
                   onDragEnd={() => setDragCard(null)}
