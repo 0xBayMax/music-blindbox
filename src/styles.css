@@ -26,7 +26,12 @@ body {
   image-rendering: pixelated;
 }
 
-.page { display: flex; justify-content: center; padding: 24px 12px; min-height: 100vh; }
+.page {
+  display: flex; justify-content: center; align-items: center;
+  padding: 24px 12px;
+  min-height: 100vh;
+  min-height: 100dvh; /* 移动端动态视口：排除 Safari 地址栏收放 */
+}
 
 /* ============ 掌机外壳 ============ */
 .console {
@@ -357,13 +362,72 @@ body {
 }
 .achieve-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #4a3000; }
 
-/* ============ 移动端兜底 ============ */
+/* ============ 移动端：紧凑布局，保证一屏显示 ============ */
 @media (max-width: 640px) {
-  .console { padding: 12px 12px 20px; border-radius: 18px 18px 40px 18px; }
-  .slots-row { flex-direction: column; }
-  .slot { min-height: 84px; }
-  .hand { flex-wrap: wrap; }
-  .cart { width: calc(50% - 6px); }
-  .controls-row { flex-wrap: wrap; gap: 14px; justify-content: center; }
+  .page { padding: 6px 4px; }
+
+  /* 外壳收紧 */
+  .console {
+    width: 100%;
+    padding: 10px 10px 14px;
+    border-radius: 16px 16px 36px 16px;
+    box-shadow: 0 6px 0 #7c786c, 0 12px 24px rgba(0, 0, 0, .5), inset 0 2px 0 rgba(255, 255, 255, .5);
+  }
+  .console-top { padding: 0 2px 8px; }
+  .brand { font-size: 9px; }
+  .led { width: 8px; height: 8px; }
+
+  /* 屏幕区收紧 */
+  .screen-bezel { padding: 8px; border-radius: 10px; }
+  .screen { padding: 10px 10px 8px; }
+  .screen-head { font-size: 10px; padding-bottom: 6px; margin-bottom: 8px; }
+  .screen-head .blink { font-size: 7px; }
+
+  /* 卡槽保持横排 + 压缩高度 */
+  .slots-row { gap: 6px; margin-bottom: 8px; }
+  .slot { min-height: 0; padding: 4px; gap: 3px; }
+  .slot-label { font-size: 7px; }
+  .slot-empty { font-size: 7px; letter-spacing: 1px; }
+  .slot .cart.compact { padding: 8px 4px 4px; }
+  .slot .cart.compact .cart-label { padding: 3px; }
+  .slot .cart.compact .cart-name { font-size: 7px; }
+  .slot .cart.compact .cart-meta { font-size: 5px; }
+  .slot .cart.compact .sigil { width: 16px; height: 16px; }
+
+  /* 频谱压扁 */
+  .spectrum { height: 40px; margin-bottom: 8px; }
+
+  /* 手卡区：横向滑动不换行，卡带缩小 */
+  .hand { min-height: 0; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; padding-bottom: 4px; scrollbar-width: none; }
+  .hand::-webkit-scrollbar { display: none; }
+  .hand .cart { width: 124px; flex: 0 0 auto; padding: 10px 5px 5px; }
+  .hand .cart-label { padding: 4px; min-height: 0; }
+  .hand .sigil { width: 22px; height: 22px; }
+  .hand .cart-name { font-size: 8px; }
+  .hand .cart-meta { font-size: 6px; }
+  .hand .cart-flavor { display: none; } /* 移动端藏 flavor 省高度 */
+  .hand .cart-rarity { font-size: 6px; padding: 1px 2px; }
+  .cart-lock { font-size: 6px; right: -4px; top: -6px; }
+  .hand-hint { font-size: 7px; }
+
+  .term-line { font-size: 7px; margin-top: 6px; padding-top: 6px; }
+
+  /* 控制区：单行不换行，全部缩小 */
+  .controls-row { margin-top: 12px; padding: 0 2px; flex-wrap: nowrap; gap: 8px; }
+  .dpad { width: 60px; height: 60px; }
+  .dpad-h { top: 19px; width: 60px; height: 22px; }
+  .dpad-v { left: 19px; width: 22px; height: 60px; }
+  .ab-cluster { gap: 12px; }
+  .ab-item { gap: 4px; }
+  .btn-round { width: 42px; height: 42px; font-size: 11px; }
+  .start-pair { gap: 8px; }
+  .pill-item { gap: 4px; }
+  .btn-pill { font-size: 7px; padding: 7px 10px; }
+  .btn-cap { font-size: 6px; }
   .speaker { display: none; }
+
+  /* 成就弹窗里的卡 */
+  .achieve { padding: 18px 14px; }
+  .achieve-title { font-size: 12px; }
+  .achieve-cards .cart { width: 96px; }
 }
